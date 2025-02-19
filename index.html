@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D 悬浮蓝色爱心粒子</title>
+    <title>3D 悬浮爱心粒子</title>
     <style>
         body {
             margin: 0;
@@ -53,14 +53,28 @@
         const geometry = new THREE.ShapeGeometry(heartShape);
         const material = new THREE.PointsMaterial({ color: 0x0000ff, size: 0.05 });
         const points = new THREE.Points(geometry, material);
+
+        // 将爱心移到场景中心
+        points.position.y = -5;
         scene.add(points);
+
+        // 粒子上升动画变量
+        let riseProgress = 0;
+        const riseSpeed = 0.01;
 
         // 渲染循环
         function animate() {
             requestAnimationFrame(animate);
 
-            points.rotation.x += 0.01;
-            points.rotation.y += 0.01;
+            // 粒子上升动画
+            if (riseProgress < 1) {
+                riseProgress += riseSpeed;
+                points.position.y = -5 + 10 * riseProgress;
+            }
+
+            // 爱心旋转动画
+            points.rotation.x += 0.005;
+            points.rotation.y += 0.005;
 
             renderer.render(scene, camera);
         }
