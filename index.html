@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D 悬浮爱心粒子</title>
+    <title>3D Particle Heart</title>
     <style>
         body {
             margin: 0;
@@ -13,10 +13,8 @@
             background-color: #000;
         }
 
-        #container {
+        #particles-container {
             position: absolute;
-            top: 0;
-            left: 0;
             width: 100%;
             height: 100%;
         }
@@ -24,62 +22,82 @@
 </head>
 
 <body>
-    <div id="container"></div>
+    <div id="particles-container"></div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
         // 创建场景
         const scene = new THREE.Scene();
-
         // 创建相机
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         camera.position.z = 5;
-
         // 创建渲染器
         const renderer = new THREE.WebGLRenderer();
         renderer.setSize(window.innerWidth, window.innerHeight);
-        document.getElementById('container').appendChild(renderer.domElement);
+        document.getElementById('particles-container').appendChild(renderer.domElement);
 
-        // 创建爱心几何体
-        const heartShape = new THREE.Shape();
-        const x = 0, y = 0;
-        heartShape.moveTo(x + 2.5, y + 2.5);
-        heartShape.bezierCurveTo(x + 2.5, y + 2.5, x + 2, y, x, y);
-        heartShape.bezierCurveTo(x - 3, y, x - 3, y + 3.5, x - 3, y + 3.5);
-        heartShape.bezierCurveTo(x - 3, y + 5.5, x - 1.5, y + 7.7, x + 2.5, y + 9.5);
-        heartShape.bezierCurveTo(x + 6, y + 7.7, x + 8, y + 5.5, x + 8, y + 3.5);
-        heartShape.bezierCurveTo(x + 8, y + 3.5, x + 8, y, x + 5, y);
-        heartShape.bezierCurveTo(x + 3.5, y, x + 2.5, y + 2.5, x + 2.5, y + 2.5);
+        // 定义爱心形状的函数
+        function heartShape(t) {
+            const x = 16 * Math.pow(Math.sin(t), 3);
+            const y = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
+            return new THREE.Vector3(x / 20, y / 20, 0);
+        }
 
-        const geometry = new THREE.ShapeGeometry(heartShape);
-        const material = new THREE.PointsMaterial({ color: 0x0000ff, size: 0.05 });
-        const points = new THREE.Points(geometry, material);
+        // 创建粒子系统
+        const particleCount = 1000;
+        const geometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(particleCount * 3);
+        const velocities = new Float32Array(particleCount * 3);
 
-        // 将爱心移到场景中心
-        points.position.y = -5;
-        scene.add(points);
+        for (let i = 0; i < particleCount; i++) {
+            const t = Math.random() * Math.PI * 2;
+            const position = heartShape(t);
+            positions[i * 3] = position.x;
+            positions[i * 3 + 1] = position.y;
+            positions[i * 3 + 2] = position.z;
 
-        // 粒子上升动画变量
-        let riseProgress = 0;
-        const riseSpeed = 0.01;
+            velocities[i * 3] = 0;
+            velocities[i * 3 + 1] = Math.random() * 0.01 + 0.005;
+            velocities[i * 3 + 2] = 0;
+        }
 
-        // 渲染循环
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        const material = new THREE.PointsMaterial({ color: 0x00aaff, size: 0.02 });
+        const particles = new THREE.Points(geometry, material);
+        scene.add(particles);
+
+        // 动画循环
         function animate() {
             requestAnimationFrame(animate);
 
-            // 粒子上升动画
-            if (riseProgress < 1) {
-                riseProgress += riseSpeed;
-                points.position.y = -5 + 10 * riseProgress;
+            // 更新粒子位置
+            const positions = particles.geometry.attributes.position.array;
+            const velocities = particles.geometry.attributes.velocity;
+            for (let i = 0; i < particleCount; i++) {
+                positions[i * 3 + 1] += velocities.array[i * 3 + 1];
+                if (positions[i * 3 + 1] > 2) {
+                    const t = Math.random() * Math.PI * 2;
+                    const position = heartShape(t);
+                    positions[i * 3] = position.x;
+                    positions[i * 3 + 1] = position.y;
+                    positions[i * 3 + 2] = position.z;
+                }
             }
+            particles.geometry.attributes.position.needsUpdate = true;
 
-            // 爱心旋转动画
-            points.rotation.x += 0.005;
-            points.rotation.y += 0.005;
+            // 旋转爱心
+            particles.rotation.y += 0.001;
 
             renderer.render(scene, camera);
         }
 
         animate();
+
+        // 处理窗口大小变化
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
     </script>
 </body>
 
