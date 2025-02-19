@@ -1,67 +1,83 @@
 <!DOCTYPE html>
-<html lang="en">
-
+<html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>3D Heart</title>
-  <style>
-    body {
-      margin: 0;
-      padding: 0;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-      background-color: #000;
-    }
-
-    #heart-container {
-      perspective: 1000px;
-    }
-
-    .heart {
-      position: relative;
-      width: 100px;
-      height: 100px;
-      transform-style: preserve-3d;
-      animation: rotate 8s infinite linear;
-    }
-
-    .heart div {
-      position: absolute;
-      width: 100%;
-      height: 100%;
-      background: url('https://via.placeholder.com/100x100') center/cover;
-      opacity: 0.8;
-    }
-
-    @keyframes rotate {
-      0% {
-        transform: rotateX(0deg) rotateY(0deg);
-      }
-
-      100% {
-        transform: rotateX(360deg) rotateY(360deg);
-      }
-    }
-  </style>
+    <title>李峋爱心代码</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            background: #000;
+            overflow: hidden;
+        }
+        canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+        }
+    </style>
 </head>
-
 <body>
-  <div id="heart-container">
-    <div class="heart">
-      <div style="transform: rotateY(0deg) translateZ(50px);"></div>
-      <div style="transform: rotateY(90deg) translateZ(50px);"></div>
-      <div style="transform: rotateY(180deg) translateZ(50px);"></div>
-      <div style="transform: rotateY(270deg) translateZ(50px);"></div>
-      <div style="transform: rotateX(90deg) translateZ(50px);"></div>
-      <div style="transform: rotateX(-90deg) translateZ(50px);"></div>
-    </div>
-  </div>
-  <script>
-    // 这里可以添加更多交互逻辑
-  </script>
-</body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // 初始化场景
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
 
+        // 创建爱心几何体
+        const heartShape = new THREE.Shape();
+        heartShape.moveTo(0, 0);
+        heartShape.bezierCurveTo(0, 0, -0.5, 0.5, -1, 1.5);
+        heartShape.bezierCurveTo(-2, 2.5, -0.5, 4, 0, 5);
+        heartShape.bezierCurveTo(0.5, 4, 2, 2.5, 1, 1.5);
+        heartShape.bezierCurveTo(0.5, 0.5, 0, 0, 0, 0);
+
+        // 创建3D模型
+        const extrudeSettings = {
+            depth: 0.5,
+            bevelEnabled: true,
+            bevelSegments: 8,
+            steps: 2,
+            bevelSize: 0.1,
+            bevelThickness: 0.1
+        };
+
+        const geometry = new THREE.ExtrudeGeometry(heartShape, extrudeSettings);
+        const material = new THREE.MeshPhongMaterial({
+            color: 0xff3366,  // 可以修改颜色值
+            shininess: 100
+        });
+        const heart = new THREE.Mesh(geometry, material);
+        scene.add(heart);
+
+        // 添加灯光
+        const light = new THREE.PointLight(0xffffff, 1, 100);
+        light.position.set(0, 0, 50);
+        scene.add(light);
+
+        // 设置相机位置
+        camera.position.z = 7;
+
+        // 添加自动旋转动画
+        function animate() {
+            requestAnimationFrame(animate);
+            heart.rotation.x += 0.01;
+            heart.rotation.y += 0.01;
+            renderer.render(scene, camera);
+        }
+
+        // 响应窗口大小变化
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+    </script>
+</body>
 </html>
