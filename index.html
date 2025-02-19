@@ -1,83 +1,245 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+
 <head>
-    <title>李峋爱心代码</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-        }
-        body {
-            background: #000;
-            overflow: hidden;
-        }
-        canvas {
-            position: fixed;
-            top: 0;
-            left: 0;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Beating Heart</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background-color: black;
+    }
+
+    canvas {
+      border: 1px solid black;
+    }
+
+    .text {
+      position: absolute;
+      top: 10%;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #FF69B4;
+      font-family: '宋体', sans-serif;
+      font-size: 18px;
+    }
+  </style>
 </head>
+
 <body>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script>
-        // 初始化场景
-        const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(renderer.domElement);
+  <canvas id="heartCanvas" width="640" height="480"></canvas>
+  <div class="text">点燃我 温暖你</div>
+  <script>
+    const CANVAS_WIDTH = 640;
+    const CANVAS_HEIGHT = 480;
+    const CANVAS_CENTER_X = CANVAS_WIDTH / 2;
+    const CANVAS_CENTER_Y = CANVAS_HEIGHT / 2;
+    const IMAGE_ENLARGE = 11;
+    const HEART_COLOR = "#FF69B4";
 
-        // 创建爱心几何体
-        const heartShape = new THREE.Shape();
-        heartShape.moveTo(0, 0);
-        heartShape.bezierCurveTo(0, 0, -0.5, 0.5, -1, 1.5);
-        heartShape.bezierCurveTo(-2, 2.5, -0.5, 4, 0, 5);
-        heartShape.bezierCurveTo(0.5, 4, 2, 2.5, 1, 1.5);
-        heartShape.bezierCurveTo(0.5, 0.5, 0, 0, 0, 0);
+    function heartFunction(t, shrinkRatio = IMAGE_ENLARGE) {
+      const x = 16 * Math.pow(Math.sin(t), 3);
+      const y = -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t));
+      return {
+        x: x * shrinkRatio + CANVAS_CENTER_X,
+        y: y * shrinkRatio + CANVAS_CENTER_Y
+      };
+    }
 
-        // 创建3D模型
-        const extrudeSettings = {
-            depth: 0.5,
-            bevelEnabled: true,
-            bevelSegments: 8,
-            steps: 2,
-            bevelSize: 0.1,
-            bevelThickness: 0.1
-        };
+    function scatterInside(x, y, beta = 0.15) {
+      const ratioX = -beta * Math.log(Math.random());
+      const ratioY = -beta * Math.log(Math.random());
+      const dx = ratioX * (x - CANVAS_CENTER_X);
+      const dy = ratioY * (y - CANVAS_CENTER_Y);
+      return {
+        x: x - dx,
+        y: y - dy
+      };
+    }
 
-        const geometry = new THREE.ExtrudeGeometry(heartShape, extrudeSettings);
-        const material = new THREE.MeshPhongMaterial({
-            color: 0xff3366,  // 可以修改颜色值
-            shininess: 100
-        });
-        const heart = new THREE.Mesh(geometry, material);
-        scene.add(heart);
+    function shrink(x, y, ratio) {
+      const force = -1 / Math.pow(Math.pow(x - CANVAS_CENTER_X, 2) + Math.pow(y - CANVAS_CENTER_Y, 2), 0.6);
+      const dx = ratio * force * (x - CANVAS_CENTER_X);
+      const dy = ratio * force * (y - CANVAS_CENTER_Y);
+      return {
+        x: x - dx,
+        y: y - dy
+      };
+    }
 
-        // 添加灯光
-        const light = new THREE.PointLight(0xffffff, 1, 100);
-        light.position.set(0, 0, 50);
-        scene.add(light);
+    function curve(p) {
+      return 2 * (2 * Math.sin(4 * p)) / (2 * Math.PI);
+    }
 
-        // 设置相机位置
-        camera.position.z = 7;
+    class Heart {
+      constructor(generateFrame = 20) {
+        this._points = new Set();
+        this._edgeDiffusionPoints = new Set();
+        this._centerDiffusionPoints = new Set();
+        this.allPoints = {};
+        this.build(2000);
 
-        // 添加自动旋转动画
-        function animate() {
-            requestAnimationFrame(animate);
-            heart.rotation.x += 0.01;
-            heart.rotation.y += 0.01;
-            renderer.render(scene, camera);
+        this.randomHalo = 1000;
+        this.generateFrame = generateFrame;
+        for (let frame = 0; frame < generateFrame; frame++) {
+          this.calc(frame);
+        }
+      }
+
+      build(number) {
+        for (let i = 0; i < number; i++) {
+          const t = Math.random() * 2 * Math.PI;
+          const {
+            x,
+            y
+          } = heartFunction(t);
+          this._points.add(`${x},${y}`);
         }
 
-        // 响应窗口大小变化
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
+        for (const point of this._points) {
+          const [x, y] = point.split(',').map(Number);
+          for (let i = 0; i < 3; i++) {
+            const {
+              x: newX,
+              y: newY
+            } = scatterInside(x, y, 0.05);
+            this._edgeDiffusionPoints.add(`${newX},${newY}`);
+          }
+        }
 
-        animate();
-    </script>
+        const pointList = Array.from(this._points);
+        for (let i = 0; i < 6000; i++) {
+          const [x, y] = randomChoice(pointList).split(',').map(Number);
+          const {
+            x: newX,
+            y: newY
+          } = scatterInside(x, y, 0.17);
+          this._centerDiffusionPoints.add(`${newX},${newY}`);
+        }
+      }
+
+      calcPosition(x, y, ratio) {
+        const force = 1 / Math.pow(Math.pow(x - CANVAS_CENTER_X, 2) + Math.pow(y - CANVAS_CENTER_Y, 2), 0.520);
+        const dx = ratio * force * (x - CANVAS_CENTER_X) + getRandomInt(-1, 1);
+        const dy = ratio * force * (y - CANVAS_CENTER_Y) + getRandomInt(-1, 1);
+        return {
+          x: x - dx,
+          y: y - dy
+        };
+      }
+
+      calc(generateFrame) {
+        const ratio = 10 * curve(generateFrame / 10 * Math.PI);
+        const haloRadius = 4 + 6 * (1 + curve(generateFrame / 10 * Math.PI));
+        const haloNumber = 3000 + 4000 * Math.abs(Math.pow(curve(generateFrame / 10 * Math.PI), 2));
+
+        const allPoints = [];
+
+        const heartHaloPoint = new Set();
+        for (let i = 0; i < haloNumber; i++) {
+          const t = Math.random() * 4 * Math.PI;
+          const {
+            x,
+            y
+          } = heartFunction(t, 11.5);
+          const {
+            x: newX,
+            y: newY
+          } = shrink(x, y, haloRadius);
+          if (!heartHaloPoint.has(`${newX},${newY}`)) {
+            heartHaloPoint.add(`${newX},${newY}`);
+            const size = randomChoice([1, 2, 2]);
+            allPoints.push({
+              x: newX + getRandomInt(-14, 14),
+              y: newY + getRandomInt(-14, 14),
+              size
+            });
+          }
+        }
+
+        for (const point of this._points) {
+          const [x, y] = point.split(',').map(Number);
+          const {
+            x: newX,
+            y: newY
+          } = this.calcPosition(x, y, ratio);
+          const size = getRandomInt(1, 3);
+          allPoints.push({
+            x: newX,
+            y: newY,
+            size
+          });
+        }
+
+        for (const point of this._edgeDiffusionPoints) {
+          const [x, y] = point.split(',').map(Number);
+          const {
+            x: newX,
+            y: newY
+          } = this.calcPosition(x, y, ratio);
+          const size = getRandomInt(1, 2);
+          allPoints.push({
+            x: newX,
+            y: newY,
+            size
+          });
+        }
+
+        for (const point of this._centerDiffusionPoints) {
+          const [x, y] = point.split(',').map(Number);
+          const {
+            x: newX,
+            y: newY
+          } = this.calcPosition(x, y, ratio);
+          const size = getRandomInt(1, 2);
+          allPoints.push({
+            x: newX,
+            y: newY,
+            size
+          });
+        }
+
+        this.allPoints[generateFrame] = allPoints;
+      }
+
+      render(ctx, renderFrame) {
+        const frame = renderFrame % this.generateFrame;
+        for (const {
+            x,
+            y,
+            size
+          } of this.allPoints[frame]) {
+          ctx.fillStyle = HEART_COLOR;
+          ctx.fillRect(x, y, size, size);
+        }
+      }
+    }
+
+    function randomChoice(arr) {
+      return arr[Math.floor(Math.random() * arr.length)];
+    }
+
+    function getRandomInt(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function draw(canvas, heart, renderFrame = 0) {
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+      heart.render(ctx, renderFrame);
+      requestAnimationFrame(() => draw(canvas, heart, renderFrame + 1));
+    }
+
+    const canvas = document.getElementById('heartCanvas');
+    const heart = new Heart();
+    draw(canvas, heart);
+  </script>
 </body>
+
 </html>
